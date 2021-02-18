@@ -9,26 +9,29 @@ class Function {
     line: number;
     file: string;
     comment: string;
+    returnValue: string
 
-    constructor(file: string, line: number, name: string, is_export: boolean, comment: string|undefined, args: Argument[]) {
+    constructor(file: string, line: number, name: string, is_export: boolean, comment: string|undefined, args: Argument[], returnValue: string) {
         this.file = file;
         this.line = line;
         this.name = name;
         this.comment = comment || "";
         this.args = args;
         this.is_export = is_export;
+        this.returnValue = returnValue;
     }
 
     make_markdown(): vscode.MarkdownString {
         let md = new vscode.MarkdownString();
         md.appendMarkdown(this.comment);
-        md.appendCodeblock(`${this.name}(${this.args.map(x=>`${x.name}${x.type!=undefined?`: ${x.type.split(' ').join('')}`:''}`)})`)
+        md.appendCodeblock(`${this.name}(${this.args
+            .map(x=>`${x.name}${x.type!=undefined?`: ${x.type.split(' ').join('')}`:''}`)})${this.returnValue.length>0?`:${this.returnValue}`:''}`)
         return md;
     }
 
     copy_require()
     {
-        return new Function(this.file,this.line,this.name,false,this.comment,this.args);
+        return new Function(this.file,this.line,this.name,false,this.comment,this.args, this.returnValue);
     }
 }
 
@@ -65,7 +68,7 @@ function parse_functions_int(fpath: string, doc: string)
     for(const i in lines) {
         let tx = lines[i];
 
-        if(tx.trimLeft().trimRight().length==0) 
+        if(tx.trim().length==0) 
         {
             last_comment = undefined;
             continue;
@@ -111,7 +114,7 @@ function parse_functions_int(fpath: string, doc: string)
             {
                 str = tx.substring(sindex+1);
                 let atmatch = str.match(/(@.+?) /);
-                if(atmatch) str = '  \n'+str.replace(atmatch[1],`_${atmatch[1].trimLeft().trimRight()}_`)
+                if(atmatch) str = '  \n'+str.replace(atmatch[1],`_${atmatch[1].trim()}_`)
                 cur_comment+=str;
             }
         }
@@ -122,13 +125,14 @@ function parse_functions_int(fpath: string, doc: string)
             cur_comment = undefined;
         }
 
-        let func_match = tx.match(/def (.+?)\((.+?|)\)/);
+        let func_match = tx.match(/def (.+?)\((.+?|)\) *(?:\:|) *(.+|)/);
         if(func_match) {
             const args = func_match[2].split(',').map(x=>{
                 const types = x.split(':');
                 return new Argument(types[0],types[1]);
             }).filter(x=>x.name.length>0);
-            functions[func_match[1]] = (new Function(fpath,parseInt(i),func_match[1],next_export,last_comment,args));
+            let ret = func_match[3].trim()
+            functions[func_match[1]] = (new Function(fpath,parseInt(i),func_match[1],next_export,last_comment,args, ret));
         }
 
         if(tx.startsWith('[export]'))
