@@ -73,6 +73,8 @@ function parse_functions_int(fpath: string, doc: string)
     
         if(tx.startsWith('require ')){
             let req = tx.substring(8)
+            req = req.split('\n').join('');
+            req = req.split('\r').join('');
             let curdir = path.dirname(fpath);
             let found = false;
             let fp = path.resolve(path.dirname(fpath),req);
